@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>AI Image Classifier</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            text-align: center;
+            margin: 0;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 650px;
+            margin: auto;
+            background: white;
+            padding: 35px;
+            border-radius: 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            margin-bottom: 5px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        input[type="file"] {
+            margin: 20px;
+        }
+
+        #preview {
+            max-width: 400px;
+            max-height: 300px;
+            margin: 20px auto;
+            border-radius: 12px;
+            display: none;
+        }
+
+        button {
+            background: #1976d2;
+            color: white;
+            border: none;
+            padding: 14px 30px;
+            font-size: 17px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #125aa0;
+        }
+
+        #result {
+            margin-top: 30px;
+            text-align: left;
+        }
+
+        .prediction {
+            margin: 15px 0;
+        }
+
+        .label {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .bar {
+            width: 100%;
+            background: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .progress {
+            height: 25px;
+            background: #4caf50;
+            color: white;
+            text-align: right;
+            padding-right: 8px;
+            line-height: 25px;
+            box-sizing: border-box;
+        }
+
+        #mainPrediction {
+            text-align: center;
+            font-size: 25px;
+            font-weight: bold;
+            margin: 25px 0;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>🧠 AI Image Classifier</h1>
+
+    <p class="subtitle">
+        Image vs Dog Classification
+    </p>
+
+    <input type="file" id="imageUpload" accept="image/*">
+
+    <br>
+
+    <img id="preview" alt="Selected image">
+
+    <br>
+
+    <button onclick="classifyImage()">
+        Classify Image
+    </button>
+
+    <div id="mainPrediction">
+        Upload an image to begin
+    </div>
+
+    <div id="result"></div>
+
+</div>
+
+
+<script>
+
+    // Your Teachable Machine model
+    const MODEL_URL =
+        "https://teachablemachine.withgoogle.com/models/t6DP7pOJD/";
+
+    let model;
+    let selectedImage = null;
+
+
+    // Load the model
+    async function loadModel() {
+
+        document.getElementById("mainPrediction").innerText =
+            "Loading AI model...";
+
+        const modelURL = MODEL_URL + "model.json";
+        const metadataURL = MODEL_URL + "metadata.json";
+
+        model = await tmImage.load(modelURL, metadataURL);
+
+        document.getElementById("mainPrediction").innerText =
+            "AI model ready!";
+
+        console.log("Model loaded successfully.");
+    }
+
+
+    // Display selected image
+    document.getElementById("imageUpload").addEventListener(
+        "change",
+        function(event) {
+
+            const file = event.target.files[0];
+
+            if (!file) return;
+
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+
+                const preview = document.getElementById("preview");
+
+                preview.src = e.target.result;
+                preview.style.display = "block";
+
+                selectedImage = preview;
+
+                document.getElementById("mainPrediction").innerText =
+                    "Image selected. Click Classify Image.";
+
+                document.getElementById("result").innerHTML = "";
+            };
+
+            reader.readAsDataURL(file);
+        }
+    );
+
+
+    // Classify image
+    async function classifyImage() {
+
+        if (!model) {
+
+            alert("AI model is still loading. Please wait.");
+
+            return;
+        }
+
+        if (!selectedImage) {
+
+            alert("Please upload an image first.");
+
+            return;
+        }
+
+        document.getElementById("mainPrediction").innerText =
+            "🔄 Classifying...";
+
+        const predictions =
+            await model.predict(selectedImage);
+
+        // Find highest probability
+        let highest = predictions[0];
+
+        for (let i = 1; i < predictions.length; i++) {
+
+            if (predictions[i].probability >
+                highest.probability) {
+
+                highest = predictions[i];
+            }
+        }
+
+        document.getElementById("mainPrediction").innerText =
+            "Prediction: " +
+            highest.className +
+            " (" +
+            (highest.probability * 100).toFixed(1) +
+            "%)";
+
+
+        // Display all predictions
+        let resultHTML = "";
+
+        predictions.forEach(function(prediction) {
+
+            const percentage =
+                prediction.probability * 100;
+
+            resultHTML += `
+
+                <div class="prediction">
+
+                    <div class="label">
+                        ${prediction.className}
+                        — ${percentage.toFixed(1)}%
+                    </div>
+
+                    <div class="bar">
+
+                        <div
+                            class="progress"
+                            style="width:${percentage}%">
+
+                            ${percentage.toFixed(1)}%
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            `;
+        });
+
+        document.getElementById("result").innerHTML =
+            resultHTML;
+    }
+
+
+    // Start loading model
+    loadModel();
+
+</script>
+
+</body>
+</html>
